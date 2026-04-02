@@ -1,0 +1,41 @@
+<div id="{uniqueID}_modal" class="modal_outer noselect">
+	<div class="modal_inner noselect">
+		<h3>Explorer Status</h3>
+
+		<p id="{uniqueID}_status" class="status">Status: Ok.</p>
+
+		<hr class="dark_hr"/>
+
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">상태</span>
+			<span id="{uniqueID}_state" style="font-weight:600;">—</span>
+		</div>
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">Frontier 수</span>
+			<span id="{uniqueID}_frontier" style="font-weight:600;">—</span>
+		</div>
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">현재 목표</span>
+			<span id="{uniqueID}_goal" style="font-weight:600;">—</span>
+		</div>
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">경과 시간</span>
+			<span id="{uniqueID}_elapsed" style="font-weight:600;">—</span>
+		</div>
+
+		<div style="margin-top:10px;">
+			<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:#6c7086;">
+				<span>진행률</span>
+				<span id="{uniqueID}_pct">0%</span>
+			</div>
+			<div style="width:100%;height:8px;background:#313244;border-radius:4px;overflow:hidden;">
+				<div id="{uniqueID}_bar" style="height:100%;background:#a6e3a1;border-radius:4px;transition:width 0.5s ease;width:0%;"></div>
+			</div>
+		</div>
+
+		<div class="spacer"></div>
+
+		<hr class="dark_hr"/>
+		<button id="{uniqueID}_remove" class="delete_button" onclick="removeWidget('{uniqueID}')">Remove Widget</button>
+	</div>
+</div>
