@@ -1,0 +1,29 @@
+<div id="{uniqueID}_modal" class="modal_outer noselect">
+	<div class="modal_inner noselect">
+		<h3>Auto Mapping</h3>
+
+		<p id="{uniqueID}_status" class="status">Status: Ok.</p>
+
+		<hr class="dark_hr"/>
+
+		<div style="margin-bottom:8px;">
+			<span id="{uniqueID}_badge" style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:#45475a;color:#cdd6f4;">idle</span>
+		</div>
+
+		<button id="{uniqueID}_btn_start" style="display:block;width:100%;padding:9px;margin-bottom:8px;border:none;border-radius:6px;font-size:13px;cursor:pointer;background:#a6e3a1;color:#1e1e2e;">▶ 맵핑 시작</button>
+		<button id="{uniqueID}_btn_stop"  style="display:block;width:100%;padding:9px;margin-bottom:8px;border:none;border-radius:6px;font-size:13px;cursor:pointer;background:#f38ba8;color:#1e1e2e;" disabled>■ 맵핑 중지</button>
+
+		<div style="display:flex;gap:6px;margin-bottom:8px;">
+			<input type="text" id="{uniqueID}_map_name" placeholder="저장할 맵 이름" value="my_map"
+				style="flex:1;padding:7px 9px;background:#313244;border:1px solid #45475a;border-radius:6px;color:#cdd6f4;font-size:13px;">
+			<button id="{uniqueID}_btn_save" style="padding:7px 14px;border:none;border-radius:6px;font-size:13px;cursor:pointer;background:#89b4fa;color:#1e1e2e;">💾 저장</button>
+		</div>
+
+		<p id="{uniqueID}_log" style="font-size:11px;color:#6c7086;min-height:18px;"></p>
+
+		<div class="spacer"></div>
+
+		<hr class="dark_hr"/>
+		<button id="{uniqueID}_remove" class="delete_button" onclick="removeWidget('{uniqueID}')">Remove Widget</button>
+	</div>
+</div>
