@@ -76,7 +76,26 @@ def index():
 	return render_template('index.html', base_url=param_base_url)
 
 def list_template_files():
-	return get_files("templates", ['.html', '.js', '.css'])
+	extensions = ['.html', '.js', '.css']
+	templates_dir = os.path.join(app.static_folder, "templates")
+	widgets_dir = os.path.join(app.static_folder, "widgets")
+	file_list = []
+
+	for scan_dir in [templates_dir, widgets_dir]:
+		if not os.path.exists(scan_dir):
+			continue
+		for root, dirs, files in os.walk(scan_dir):
+			for file in files:
+				if os.path.splitext(file)[1] in extensions:
+					file_path = os.path.join(root, file)
+					with open(file_path, 'r') as f:
+						file_content = f.read()
+					file_list.append({'path': os.path.relpath(file_path, templates_dir), 'content': file_content})
+
+	js_module = f"const files = {json.dumps(file_list)};\nexport default files;"
+	response = make_response(js_module)
+	response.headers['Content-Type'] = 'application/javascript'
+	return response
 
 def list_robot_model_files():
 	templates_dir = os.path.join(app.static_folder, "assets/robot_model")
