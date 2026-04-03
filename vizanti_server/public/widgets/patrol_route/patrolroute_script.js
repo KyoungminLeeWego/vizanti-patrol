@@ -170,6 +170,17 @@ function {uniqueID}_drawRoute() {
 }
 
 // ── 웨이포인트 목록 UI (Task 3) ──────────────────────────────
+function {uniqueID}_moveWaypoint(fromIdx, toIdx) {
+	if (toIdx < 0 || toIdx >= {uniqueID}_waypoints.length) return;
+	const moved = {uniqueID}_waypoints.splice(fromIdx, 1)[0];
+	{uniqueID}_waypoints.splice(toIdx, 0, moved);
+	if ({uniqueID}_selectedWaypoint === fromIdx) {
+		{uniqueID}_selectedWaypoint = toIdx;
+	}
+	{uniqueID}_renderList();
+	{uniqueID}_drawRoute();
+}
+
 function {uniqueID}_renderList() {
 	const ul = document.getElementById("{uniqueID}_wp_list");
 	if ({uniqueID}_waypoints.length === 0) {
@@ -181,27 +192,44 @@ function {uniqueID}_renderList() {
 	{uniqueID}_waypoints.forEach((wp, i) => {
 		const isActive   = i === {uniqueID}_activeWaypoint;
 		const isSelected = i === {uniqueID}_selectedWaypoint;
+		const isFirst    = i === 0;
+		const isLast     = i === {uniqueID}_waypoints.length - 1;
 
 		const li = document.createElement('li');
 		li.dataset.index = i;
-		li.draggable = true;
 		li.style.cssText = [
 			'display:flex',
 			'align-items:center',
-			'gap:5px',
-			'padding:4px 7px',
+			'gap:4px',
+			'padding:4px 6px',
 			'border-radius:5px',
 			'margin-bottom:3px',
 			'font-size:12px',
-			'cursor:pointer',
 			'user-select:none',
 			'background:' + (isActive ? '#313244' : (isSelected ? '#2a2a3c' : '#181825')),
 			'border:1px solid ' + (isActive ? '#f38ba8' : (isSelected ? '#89b4fa' : 'transparent'))
 		].join(';');
 
+		const btnStyle = 'background:#313244;color:#cdd6f4;border:none;border-radius:3px;' +
+			'width:20px;height:20px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1;padding:0;';
+		const btnDisabled = 'background:#1e1e2e;color:#45475a;border:none;border-radius:3px;' +
+			'width:20px;height:20px;font-size:11px;cursor:default;flex-shrink:0;line-height:1;padding:0;';
+
+		const upBtn = {uniqueID}_editMode
+			? '<button class="{uniqueID}_wp_up" data-idx="' + i + '" ' +
+				'style="' + (isFirst ? btnDisabled : btnStyle) + '"' +
+				(isFirst ? ' disabled' : '') + '>▲</button>'
+			: '';
+		const dnBtn = {uniqueID}_editMode
+			? '<button class="{uniqueID}_wp_dn" data-idx="' + i + '" ' +
+				'style="' + (isLast ? btnDisabled : btnStyle) + '"' +
+				(isLast ? ' disabled' : '') + '>▼</button>'
+			: '';
+
 		li.innerHTML =
-			'<span style="min-width:18px;text-align:right;font-weight:bold;color:' +
-				(isActive ? '#f38ba8' : '#6c7086') + ';">' + (i + 1) + '</span>' +
+			upBtn + dnBtn +
+			'<span style="min-width:18px;text-align:center;font-weight:bold;font-size:12px;color:' +
+				(isActive ? '#f38ba8' : '#89b4fa') + ';margin:0 3px;">' + (i + 1) + '</span>' +
 			'<span style="flex:1;font-family:monospace;font-size:11px;color:#cdd6f4;">' +
 				'x=' + wp.x.toFixed(2) + ' y=' + wp.y.toFixed(2) + '</span>' +
 			'<button class="{uniqueID}_del_wp" data-idx="' + i + '" ' +
@@ -209,61 +237,6 @@ function {uniqueID}_renderList() {
 				'border:none;border-radius:4px;cursor:pointer;flex-shrink:0;">✕</button>';
 
 		ul.appendChild(li);
-	});
-
-	{uniqueID}_setupDragDrop();
-}
-
-function {uniqueID}_setupDragDrop() {
-	const items = document.querySelectorAll('#{uniqueID}_wp_list li[data-index]');
-	let dragSrc = null;
-
-	items.forEach(item => {
-		item.addEventListener('dragstart', e => {
-			dragSrc = item;
-			e.dataTransfer.effectAllowed = 'move';
-			setTimeout(() => { item.style.opacity = '0.4'; }, 0);
-		});
-
-		item.addEventListener('dragend', () => {
-			item.style.opacity = '1';
-		});
-
-		item.addEventListener('dragover', e => {
-			e.preventDefault();
-			e.dataTransfer.dropEffect = 'move';
-			item.style.background = '#45475a';
-		});
-
-		item.addEventListener('dragleave', () => {
-			const i = parseInt(item.dataset.index);
-			const isActive   = i === {uniqueID}_activeWaypoint;
-			const isSelected = i === {uniqueID}_selectedWaypoint;
-			item.style.background = isActive ? '#313244' : (isSelected ? '#2a2a3c' : '#181825');
-		});
-
-		item.addEventListener('drop', e => {
-			e.preventDefault();
-			if (dragSrc && dragSrc !== item) {
-				const fromIdx = parseInt(dragSrc.dataset.index);
-				const toIdx   = parseInt(item.dataset.index);
-				const moved = {uniqueID}_waypoints.splice(fromIdx, 1)[0];
-				{uniqueID}_waypoints.splice(toIdx, 0, moved);
-				if ({uniqueID}_selectedWaypoint === fromIdx) {
-					{uniqueID}_selectedWaypoint = toIdx;
-				}
-				{uniqueID}_renderList();
-				{uniqueID}_drawRoute();
-			}
-		});
-
-		item.addEventListener('click', e => {
-			if (e.target.classList.contains('{uniqueID}_del_wp')) return;
-			const idx = parseInt(item.dataset.index);
-			{uniqueID}_selectedWaypoint = (idx === {uniqueID}_selectedWaypoint) ? -1 : idx;
-			{uniqueID}_renderList();
-			{uniqueID}_drawRoute();
-		});
 	});
 }
 
@@ -363,6 +336,7 @@ function {uniqueID}_setEditMode(enabled) {
 		{uniqueID}_view_container.removeEventListener('contextmenu', {uniqueID}_onMapContextMenu);
 	}
 
+	{uniqueID}_renderList();
 	{uniqueID}_drawRoute();
 }
 
@@ -664,17 +638,24 @@ document.getElementById("{uniqueID}_loop_btn").addEventListener('click', () => {
 	{uniqueID}_drawRoute();
 });
 
-// 목록에서 삭제 버튼
+// 목록 버튼 위임 (▲▼ 이동, ✕ 삭제)
 document.getElementById("{uniqueID}_wp_list").addEventListener('click', e => {
-	if (!e.target.classList.contains('{uniqueID}_del_wp')) return;
 	const idx = parseInt(e.target.dataset.idx);
-	{uniqueID}_waypoints.splice(idx, 1);
-	if ({uniqueID}_selectedWaypoint >= {uniqueID}_waypoints.length) {
-		{uniqueID}_selectedWaypoint = -1;
+	if (isNaN(idx)) return;
+
+	if (e.target.classList.contains('{uniqueID}_wp_up')) {
+		{uniqueID}_moveWaypoint(idx, idx - 1);
+	} else if (e.target.classList.contains('{uniqueID}_wp_dn')) {
+		{uniqueID}_moveWaypoint(idx, idx + 1);
+	} else if (e.target.classList.contains('{uniqueID}_del_wp')) {
+		{uniqueID}_waypoints.splice(idx, 1);
+		if ({uniqueID}_selectedWaypoint >= {uniqueID}_waypoints.length) {
+			{uniqueID}_selectedWaypoint = -1;
+		}
+		{uniqueID}_renderList();
+		{uniqueID}_drawRoute();
+		{uniqueID}_log('#' + (idx + 1) + ' 삭제됨');
 	}
-	{uniqueID}_renderList();
-	{uniqueID}_drawRoute();
-	{uniqueID}_log('#' + (idx + 1) + ' 삭제됨');
 });
 
 // ── 캔버스 크기 / TF 이벤트 ─────────────────────────────────
