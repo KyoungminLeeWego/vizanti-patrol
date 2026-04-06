@@ -421,6 +421,18 @@ function {uniqueID}_connectStatusWS() {
 
 				{uniqueID}_wasRunning = running;
 
+				if (Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
+					const incoming = JSON.stringify(data.current_waypoints);
+					const _snap = [];
+					{uniqueID}_waypoints.forEach(w => _snap.push(w));
+					const current = JSON.stringify(_snap);
+					if (incoming !== current) {
+						{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
+						{uniqueID}_renderList();
+						{uniqueID}_drawRoute();
+					}
+				}
+
 				const newActive = running ? idx : -1;
 				if ({uniqueID}_activeWaypoint !== newActive) {
 					{uniqueID}_activeWaypoint = newActive;
