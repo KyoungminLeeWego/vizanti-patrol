@@ -439,6 +439,13 @@ function {uniqueID}_connectStatusWS() {
 					{uniqueID}_renderList();
 					{uniqueID}_drawRoute();
 				}
+
+				// API로 시작된 순찰 웨이포인트 UI 동기화
+				if (running && Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
+					{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
+					{uniqueID}_renderList();
+					{uniqueID}_drawRoute();
+				}
 			} catch (_) { /* JSON 파싱 오류 무시 */ }
 		};
 
