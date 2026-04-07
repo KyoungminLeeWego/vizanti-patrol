@@ -34,6 +34,7 @@ let {uniqueID}_wasRunning = false;    // 이전 순찰 실행 상태 (완료 감
 
 // 드래그 상태
 let {uniqueID}_dragPoint = -1;
+let {uniqueID}_dragRotate = -1;       // yaw 편집 중인 waypoint 인덱스
 let {uniqueID}_dragStartPos = undefined;
 
 // ── Canvas ───────────────────────────────────────────────────
@@ -136,16 +137,23 @@ function {uniqueID}_drawRoute() {
 		}
 	}
 
-	// ── 마커 ──
+	// yaw 화살표 끝점 사전 계산
+	const arrowPts  = wps.map(wp => ({ x: wp.x + Math.cos(wp.yaw || 0) * 0.4, y: wp.y + Math.sin(wp.yaw || 0) * 0.4 }));
+	const arrowTips = arrowPts.map(wp => {uniqueID}_pointToScreen(wp));
+
+	// ── 마커 + yaw 화살표 ──
 	viewPoints.forEach((vp, i) => {
 		const isActive   = i === {uniqueID}_activeWaypoint;
 		const isSelected = i === {uniqueID}_selectedWaypoint;
+		const wp = wps[i];
 
+		// 외곽 테두리
 		ctx.beginPath();
 		ctx.arc(vp.x, vp.y, 13, 0, 2 * Math.PI);
 		ctx.fillStyle = "#1e1e2e";
 		ctx.fill();
 
+		// 내부 원
 		ctx.beginPath();
 		ctx.arc(vp.x, vp.y, 10, 0, 2 * Math.PI);
 		if (isActive) {
@@ -159,11 +167,43 @@ function {uniqueID}_drawRoute() {
 		}
 		ctx.fill();
 
+		// 번호
 		ctx.font = "bold 11px Monospace";
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = "#1e1e2e";
 		ctx.fillText(i + 1, vp.x, vp.y);
+
+		// yaw 화살표 (arrowTips[i] = 사전 계산된 끝점)
+		const at = arrowTips[i];
+		let arrowColor = isActive ? '#f38ba8' : (isSelected ? '#89b4fa' : '#a6e3a1');
+		{uniqueID}_dragRotate === i && (arrowColor = '#fab387');
+		const adx = at.x - vp.x;
+		const ady = at.y - vp.y;
+		const alen = Math.hypot(adx, ady);
+		if (alen > 2) {
+			const ang = Math.atan2(ady, adx);
+			const headLen = 7;
+			ctx.beginPath();
+			ctx.moveTo(vp.x, vp.y);
+			ctx.lineTo(at.x, at.y);
+			ctx.strokeStyle = arrowColor;
+			ctx.lineWidth = 2;
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(at.x, at.y);
+			ctx.lineTo(
+				at.x - headLen * Math.cos(ang - Math.PI / 6),
+				at.y - headLen * Math.sin(ang - Math.PI / 6)
+			);
+			ctx.lineTo(
+				at.x - headLen * Math.cos(ang + Math.PI / 6),
+				at.y - headLen * Math.sin(ang + Math.PI / 6)
+			);
+			ctx.closePath();
+			ctx.fillStyle = arrowColor;
+			ctx.fill();
+		}
 	});
 
 	ctx.textBaseline = "alphabetic";
@@ -231,7 +271,8 @@ function {uniqueID}_renderList() {
 			'<span style="min-width:18px;text-align:center;font-weight:bold;font-size:12px;color:' +
 				(isActive ? '#f38ba8' : '#89b4fa') + ';margin:0 3px;">' + (i + 1) + '</span>' +
 			'<span style="flex:1;font-family:monospace;font-size:11px;color:#cdd6f4;">' +
-				'x=' + wp.x.toFixed(2) + ' y=' + wp.y.toFixed(2) + '</span>' +
+				'x=' + wp.x.toFixed(2) + ' y=' + wp.y.toFixed(2) +
+				' <span style="color:#f9e2af;">yaw=' + Math.round((wp.yaw || 0) * 180 / Math.PI) + '\u00b0</span></span>' +
 			'<button class="{uniqueID}_del_wp" data-idx="' + i + '" ' +
 				'style="background:#f38ba8;color:#1e1e2e;padding:1px 6px;font-size:11px;' +
 				'border:none;border-radius:4px;cursor:pointer;flex-shrink:0;">✕</button>';
@@ -241,11 +282,12 @@ function {uniqueID}_renderList() {
 }
 
 // ── 편집 모드 / 맵 인터랙션 (Task 2) ────────────────────────
-function {uniqueID}_findNearWaypoint(screenPos) {
+function {uniqueID}_findNearWaypoint(screenPos, radius) {
+	const r = radius || 16;
 	let found = -1;
 	{uniqueID}_waypoints.forEach((wp, i) => {
 		const sp = {uniqueID}_pointToScreen(wp);
-		if (Math.hypot(sp.x - screenPos.x, sp.y - screenPos.y) < 16) {
+		if (Math.hypot(sp.x - screenPos.x, sp.y - screenPos.y) < r) {
 			found = i;
 		}
 	});
@@ -254,36 +296,86 @@ function {uniqueID}_findNearWaypoint(screenPos) {
 
 function {uniqueID}_onMapMouseDown(e) {
 	if (!{uniqueID}_editMode) return;
+	view.setInputMovementEnabled(false);
 	const pos = { x: e.clientX, y: e.clientY };
-	const idx = {uniqueID}_findNearWaypoint(pos);
-	if (idx >= 0) {
-		{uniqueID}_dragPoint = idx;
-		view.setInputMovementEnabled(false);
+	const idxC = {uniqueID}_findNearWaypoint(pos, 12);
+	const idxO = {uniqueID}_findNearWaypoint(pos, 22);
+	if (idxC >= 0) {
+		{uniqueID}_dragPoint = idxC;
+	} else if (idxO >= 0) {
+		{uniqueID}_dragRotate = idxO;
 	}
 	{uniqueID}_dragStartPos = pos;
 }
 
 function {uniqueID}_onMapMouseMove(e) {
-	if (!{uniqueID}_editMode || {uniqueID}_dragPoint < 0) return;
-	const worldPt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
-	{uniqueID}_waypoints[{uniqueID}_dragPoint].x = worldPt.x;
-	{uniqueID}_waypoints[{uniqueID}_dragPoint].y = worldPt.y;
-	{uniqueID}_drawRoute();
+	if (!{uniqueID}_editMode) return;
+	if ({uniqueID}_dragPoint >= 0) {
+		const worldPt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
+		{uniqueID}_waypoints[{uniqueID}_dragPoint].x = worldPt.x;
+		{uniqueID}_waypoints[{uniqueID}_dragPoint].y = worldPt.y;
+		{uniqueID}_drawRoute();
+	} else if ({uniqueID}_dragRotate >= 0) {
+		const wp = {uniqueID}_waypoints[{uniqueID}_dragRotate];
+		const mpt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
+		wp.yaw = Math.atan2(mpt.y - wp.y, mpt.x - wp.x);
+		{uniqueID}_drawRoute();
+	} else if ({uniqueID}_dragStartPos) {
+		// 새 waypoint 드래그 미리보기
+		{uniqueID}_drawRoute();
+		const sp = {uniqueID}_dragStartPos;
+		const moved = Math.hypot(e.clientX - sp.x, e.clientY - sp.y) > 5;
+		if (moved) {
+			const ctx = {uniqueID}_ctx;
+			const ang = Math.atan2(e.clientY - sp.y, e.clientX - sp.x);
+			const len = Math.min(Math.hypot(e.clientX - sp.x, e.clientY - sp.y), 50);
+			const ex = sp.x + Math.cos(ang) * len;
+			const ey = sp.y + Math.sin(ang) * len;
+			ctx.beginPath();
+			ctx.arc(sp.x, sp.y, 10, 0, 2 * Math.PI);
+			ctx.fillStyle = 'rgba(137,180,250,0.4)';
+			ctx.fill();
+			ctx.beginPath();
+			ctx.moveTo(sp.x, sp.y);
+			ctx.lineTo(ex, ey);
+			ctx.strokeStyle = 'rgba(137,180,250,0.9)';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(ex, ey);
+			ctx.lineTo(ex - 8 * Math.cos(ang - Math.PI / 6), ey - 8 * Math.sin(ang - Math.PI / 6));
+			ctx.lineTo(ex - 8 * Math.cos(ang + Math.PI / 6), ey - 8 * Math.sin(ang + Math.PI / 6));
+			ctx.closePath();
+			ctx.fillStyle = 'rgba(137,180,250,0.9)';
+			ctx.fill();
+		}
+	}
 }
 
 function {uniqueID}_onMapMouseUp(e) {
 	if (!{uniqueID}_editMode) return;
+	view.setInputMovementEnabled(true);
 
 	const moved = {uniqueID}_dragStartPos &&
 		Math.hypot(e.clientX - {uniqueID}_dragStartPos.x, e.clientY - {uniqueID}_dragStartPos.y) > 5;
 
 	if ({uniqueID}_dragPoint >= 0) {
-		view.setInputMovementEnabled(true);
 		if (moved) {
 			{uniqueID}_renderList();
 		}
 		{uniqueID}_dragPoint = -1;
-	} else if (!moved) {
+	} else if ({uniqueID}_dragRotate >= 0) {
+		{uniqueID}_dragRotate = -1;
+		{uniqueID}_renderList();
+	} else if (moved) {
+		const sp = {uniqueID}_dragStartPos;
+		const startPt = {uniqueID}_screenToPoint(sp);
+		const endPt   = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
+		const yaw = Math.atan2(endPt.y - startPt.y, endPt.x - startPt.x);
+		{uniqueID}_waypoints.push({ x: startPt.x, y: startPt.y, yaw: yaw });
+		{uniqueID}_renderList();
+		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (yaw ' + Math.round(yaw * 180 / Math.PI) + '\u00b0)');
+	} else {
 		const worldPt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
 		{uniqueID}_waypoints.push({ x: worldPt.x, y: worldPt.y, yaw: 0 });
 		{uniqueID}_renderList();
@@ -421,28 +513,16 @@ function {uniqueID}_connectStatusWS() {
 
 				{uniqueID}_wasRunning = running;
 
-				if (Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
-					const incoming = JSON.stringify(data.current_waypoints);
-					const _snap = [];
-					{uniqueID}_waypoints.forEach(w => _snap.push(w));
-					const current = JSON.stringify(_snap);
-					if (incoming !== current) {
-						{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
-						{uniqueID}_renderList();
-						{uniqueID}_drawRoute();
-					}
+				// 순찰 중 웨이포인트 UI 동기화 (API 시작 포함)
+				if (running && Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
+					{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
+					{uniqueID}_renderList();
+					{uniqueID}_drawRoute();
 				}
 
 				const newActive = running ? idx : -1;
 				if ({uniqueID}_activeWaypoint !== newActive) {
 					{uniqueID}_activeWaypoint = newActive;
-					{uniqueID}_renderList();
-					{uniqueID}_drawRoute();
-				}
-
-				// API로 시작된 순찰 웨이포인트 UI 동기화
-				if (running && Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
-					{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
 					{uniqueID}_renderList();
 					{uniqueID}_drawRoute();
 				}
