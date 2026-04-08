@@ -6,28 +6,41 @@
 
 		<hr class="dark_hr"/>
 
-		<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
-			<input type="number" id="{uniqueID}_wp_x"   placeholder="x"   step="0.1" style="width:68px;padding:6px 7px;background:#313244;border:1px solid #45475a;border-radius:5px;color:#cdd6f4;font-size:12px;">
-			<input type="number" id="{uniqueID}_wp_y"   placeholder="y"   step="0.1" style="width:68px;padding:6px 7px;background:#313244;border:1px solid #45475a;border-radius:5px;color:#cdd6f4;font-size:12px;">
-			<input type="number" id="{uniqueID}_wp_yaw" placeholder="yaw" step="0.1" value="0" style="width:68px;padding:6px 7px;background:#313244;border:1px solid #45475a;border-radius:5px;color:#cdd6f4;font-size:12px;">
-			<button id="{uniqueID}_btn_add" style="padding:6px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#a6e3a1;color:#1e1e2e;">+ 추가</button>
+		<!-- 실행 상태 표시 -->
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:6px 8px;background:#181825;border-radius:6px;font-size:12px;">
+			<span style="color:#6c7086;">상태</span>
+			<span id="{uniqueID}_patrol_state" style="color:#a6e3a1;font-weight:bold;">대기 중</span>
 		</div>
 
-		<ul id="{uniqueID}_wp_list" style="list-style:none;max-height:180px;overflow-y:auto;margin-bottom:8px;">
+		<!-- 편집 모드 + 좌표 입력 -->
+		<div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+			<button id="{uniqueID}_btn_edit" style="padding:6px 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#45475a;color:#cdd6f4;white-space:nowrap;">✏️ 편집 모드</button>
+			<input type="number" id="{uniqueID}_wp_x"   placeholder="x"   step="0.1" style="width:60px;padding:6px 7px;background:#313244;border:1px solid #45475a;border-radius:5px;color:#cdd6f4;font-size:12px;">
+			<input type="number" id="{uniqueID}_wp_y"   placeholder="y"   step="0.1" style="width:60px;padding:6px 7px;background:#313244;border:1px solid #45475a;border-radius:5px;color:#cdd6f4;font-size:12px;">
+			<input type="number" id="{uniqueID}_wp_yaw" placeholder="yaw" step="0.1" value="0" style="width:54px;padding:6px 7px;background:#313244;border:1px solid #45475a;border-radius:5px;color:#cdd6f4;font-size:12px;">
+			<button id="{uniqueID}_btn_add" style="padding:6px 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#a6e3a1;color:#1e1e2e;">+ 추가</button>
+		</div>
+
+		<!-- 웨이포인트 목록 -->
+		<ul id="{uniqueID}_wp_list" style="list-style:none;max-height:180px;overflow-y:auto;margin-bottom:8px;padding:0;">
 			<li style="font-size:12px;color:#6c7086;text-align:center;padding:14px 0;">웨이포인트 없음</li>
 		</ul>
 
-		<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;font-size:13px;">
-			<input type="checkbox" id="{uniqueID}_loop" style="width:16px;height:16px;cursor:pointer;">
-			<label for="{uniqueID}_loop">반복 순찰 (loop)</label>
-		</div>
+		<!-- 반복 순찰 토글 버튼 (hidden checkbox + 시각적 버튼) -->
+		<input type="checkbox" id="{uniqueID}_loop" style="display:none;">
+		<button id="{uniqueID}_loop_btn" style="width:100%;min-height:36px;padding:8px 14px;border:none;border-radius:6px;font-size:13px;cursor:pointer;background:#444;color:#aaa;margin-bottom:10px;text-align:left;font-weight:bold;">🔁 반복 순찰&nbsp;&nbsp;OFF</button>
 
+		<!-- 제어 버튼 -->
 		<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
 			<button id="{uniqueID}_btn_start"  style="padding:6px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#89b4fa;color:#1e1e2e;">▶ 순찰 시작</button>
 			<button id="{uniqueID}_btn_stop"   style="padding:6px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#f38ba8;color:#1e1e2e;">■ 순찰 중지</button>
-			<button id="{uniqueID}_btn_save"   style="padding:6px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#cba6f7;color:#1e1e2e;">💾 저장</button>
-			<button id="{uniqueID}_btn_load"   style="padding:6px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#fab387;color:#1e1e2e;">📂 불러오기</button>
 			<button id="{uniqueID}_btn_clear"  style="padding:6px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#45475a;color:#cdd6f4;">🗑 전체삭제</button>
+		</div>
+
+		<!-- 저장/불러오기 -->
+		<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+			<button id="{uniqueID}_btn_save" style="flex:1;padding:8px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#89b4fa;color:#1e1e2e;font-weight:bold;">💾 경로 저장</button>
+			<button id="{uniqueID}_btn_load" style="flex:1;padding:8px 11px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:#fab387;color:#1e1e2e;font-weight:bold;">📂 경로 불러오기</button>
 		</div>
 
 		<p id="{uniqueID}_log" style="font-size:11px;color:#6c7086;min-height:16px;"></p>
