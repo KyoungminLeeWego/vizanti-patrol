@@ -458,3 +458,48 @@ ros2 run tf2_ros tf2_echo map base_link
 1. 로봇을 수동으로 조금 이동시켜 LiDAR가 새 영역을 스캔하게 합니다.
 2. TF 오류가 없는지 확인합니다.  
    `ros2 run tf2_ros tf2_echo map base_link`
+
+## 부록
+### vizanti에서 나의 로봇 이미지 띄우기
+
+기본 상태의 Vizanti에서는 지도 위에 로봇 이미지 없이 TF 프레임 이름만 표시됩니다.
+
+<p align="center">
+  <img src="docs/images/vizanti_wo_robot.png" alt="Vizanti wo robot images" width="70%">
+</p>
+
+**Robot Model 위젯**을 추가하면 지도 위에 로봇 이미지를 오버레이할 수 있습니다. 우측 상단의 **`+`** 버튼을 클릭하여 위젯 추가 창을 열고 **Robot Model**을 선택합니다.
+
+<p align="center">
+  <img src="docs/images/vizanti_robot_model_widget.png" alt="Vizanti robot model widget" width="70%">
+</p>
+
+위젯을 추가하면 **Ground / Sea / Air / Misc** 카테고리별로 내장 로봇 스프라이트 목록이 표시됩니다. TF Frame, 로봇 크기(Robot Length), 위치 오프셋(x/y offset), 각도 오프셋(Yaw offset), 투명도(Opacity) 등을 설정할 수 있습니다.
+
+커스텀 이미지를 추가하면 해당 카테고리 탭에 나타납니다.
+
+<table align="center">
+  <tr>
+    <td><img src="docs/images/vizanti_robot_model_list.png" alt="robot model list" width="100%"></td>
+    <td><img src="docs/images/vizanti_custom_robot.png" alt="custom robot in Misc" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center">내장 로봇 스프라이트 목록 (Ground 탭)</td>
+    <td align="center">커스텀 이미지 추가 후 (Misc 탭)</td>
+  </tr>
+</table>
+
+**커스텀 로봇 이미지 추가 방법:**
+
+1. 로봇을 **top-down view(위에서 내려다보는 시점)**로 촬영하거나 그린 PNG 이미지를 준비합니다.
+2. 아래 경로에 이미지 파일을 복사합니다:
+   ```
+   vizanti-patrol/vizanti_server/public/assets/robot_model/
+   ```
+3. 카테고리별 하위 디렉터리에 넣으면 해당 탭에 표시됩니다:
+   - `ground/` → Ground 탭
+   - `sea/` → Sea 탭
+   - `air/` → Air 탭
+   - 카테고리 디렉터리 없이 바로 넣으면 **Misc** 탭에 표시
+
+이미지를 배치한 후 Vizanti 웹 페이지를 새로고침하면 Robot Model 위젯의 해당 카테고리 탭에서 커스텀 이미지를 선택할 수 있습니다.
