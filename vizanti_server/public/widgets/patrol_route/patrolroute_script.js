@@ -269,6 +269,17 @@ function {uniqueID}_renderList() {
 				(isLast ? ' disabled' : '') + '>▼</button>'
 			: '';
 
+		// 순찰 옵션 선택 드롭다운 — 현재 선택된 옵션 표시
+		const PATROL_OPTIONS = [
+			{ value: '',            label: '없음' },
+			{ value: 'yolo_camera', label: '📷 카메라' },
+			{ value: 'alarm',       label: '🚨 경보' },
+		];
+		const currentOption = (wp.patrol_options && wp.patrol_options[0]) || '';
+		const optionsHtml = PATROL_OPTIONS.map(opt =>
+			`<option value="${opt.value}" ${currentOption === opt.value ? 'selected' : ''}>${opt.label}</option>`
+		).join('');
+
 		li.innerHTML =
 			upBtn + dnBtn +
 			'<span style="min-width:18px;text-align:center;font-weight:bold;font-size:12px;color:' +
@@ -276,11 +287,37 @@ function {uniqueID}_renderList() {
 			'<span style="flex:1;font-family:monospace;font-size:11px;color:#cdd6f4;">' +
 				'x=' + wp.x.toFixed(2) + ' y=' + wp.y.toFixed(2) +
 				' <span style="color:#f9e2af;">yaw=' + Math.round((wp.yaw || 0) * 180 / Math.PI) + '\u00b0</span></span>' +
+			// 이름 입력란
+			'<input class="{uniqueID}_wp_name" data-idx="' + i + '" type="text" ' +
+				'value="' + (wp.name || '').replace(/"/g, '&quot;') + '" ' +
+				'placeholder="이름(선택)" ' +
+				'style="width:70px;padding:2px 5px;background:#313244;border:1px solid #45475a;' +
+				'border-radius:4px;color:#cdd6f4;font-size:11px;flex-shrink:0;">' +
+			// 순찰 옵션 선택
+			'<select class="{uniqueID}_wp_option" data-idx="' + i + '" ' +
+				'style="padding:2px 4px;background:#313244;border:1px solid #45475a;' +
+				'border-radius:4px;color:#cdd6f4;font-size:11px;flex-shrink:0;">' +
+				optionsHtml +
+			'</select>' +
+			// 삭제 버튼
 			'<button class="{uniqueID}_del_wp" data-idx="' + i + '" ' +
 				'style="background:#f38ba8;color:#1e1e2e;padding:1px 6px;font-size:11px;' +
 				'border:none;border-radius:4px;cursor:pointer;flex-shrink:0;">✕</button>';
 
 		ul.appendChild(li);
+
+		// 이름 입력 이벤트
+		li.querySelector('.{uniqueID}_wp_name').addEventListener('input', e => {
+			const idx = parseInt(e.target.dataset.idx);
+			{uniqueID}_waypoints[idx].name = e.target.value;
+		});
+
+		// 순찰 옵션 선택 이벤트
+		li.querySelector('.{uniqueID}_wp_option').addEventListener('change', e => {
+			const idx = parseInt(e.target.dataset.idx);
+			const val = e.target.value;
+			{uniqueID}_waypoints[idx].patrol_options = val ? [val] : [];
+		});
 	});
 }
 
@@ -376,13 +413,13 @@ function {uniqueID}_onMapMouseUp(e) {
 		const endPt   = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
 		const yaw = Math.atan2(endPt.y - startPt.y, endPt.x - startPt.x);
 		{uniqueID}_loadedRouteName = null;
-		{uniqueID}_waypoints.push({ x: startPt.x, y: startPt.y, yaw: yaw });
+		{uniqueID}_waypoints.push({ x: startPt.x, y: startPt.y, yaw: yaw, name: '', patrol_options: [] });
 		{uniqueID}_renderList();
 		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (yaw ' + Math.round(yaw * 180 / Math.PI) + '\u00b0)');
 	} else {
 		const worldPt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
 		{uniqueID}_loadedRouteName = null;
-		{uniqueID}_waypoints.push({ x: worldPt.x, y: worldPt.y, yaw: 0 });
+		{uniqueID}_waypoints.push({ x: worldPt.x, y: worldPt.y, yaw: 0, name: '', patrol_options: [] });
 		{uniqueID}_renderList();
 		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (' +
 			worldPt.x.toFixed(2) + ', ' + worldPt.y.toFixed(2) + ')');
@@ -538,7 +575,11 @@ function {uniqueID}_connectStatusWS() {
 
 				// 순찰 중 웨이포인트 UI 동기화 (API 시작 포함)
 				if (running && Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
-					{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
+					{uniqueID}_waypoints = data.current_waypoints.map(wp => ({
+						...wp,
+						name: wp.name || '',
+						patrol_options: wp.patrol_options || [],
+					}));
 					{uniqueID}_renderList();
 					{uniqueID}_drawRoute();
 				}
@@ -682,7 +723,11 @@ function {uniqueID}_showLoadDialog(routeNames) {
 				const res = await fetch({uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent(name));
 				if (!res.ok) throw new Error('not found');
 				const r = await res.json();
-				{uniqueID}_waypoints = r.waypoints.map(wp => Object.assign({}, wp));
+				{uniqueID}_waypoints = r.waypoints.map(wp => ({
+					...wp,
+					name: wp.name || '',
+					patrol_options: wp.patrol_options || [],
+				}));
 				{uniqueID}_loadedRouteName = name;
 				{uniqueID}_updateLoopBtn(r.loop === true);
 				{uniqueID}_selectedWaypoint = -1;
@@ -729,7 +774,7 @@ function {uniqueID}_addWaypoint() {
 	const yaw = parseFloat(document.getElementById("{uniqueID}_wp_yaw").value) || 0;
 	if (isNaN(x) || isNaN(y)) { {uniqueID}_log('x, y 값을 입력하세요', '#f38ba8'); return; }
 	{uniqueID}_loadedRouteName = null;
-	{uniqueID}_waypoints.push({ x, y, yaw });
+	{uniqueID}_waypoints.push({ x, y, yaw, name: '', patrol_options: [] });
 	{uniqueID}_renderList();
 	{uniqueID}_drawRoute();
 	{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (' + x + ', ' + y + ')');
