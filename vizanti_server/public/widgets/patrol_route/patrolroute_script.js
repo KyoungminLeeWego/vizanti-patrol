@@ -273,6 +273,7 @@ function {uniqueID}_renderList() {
 		const PATROL_OPTIONS = [
 			{ value: '',            label: '없음' },
 			{ value: 'yolo_camera', label: '📷 카메라' },
+			{ value: 'photo',       label: '🖼 사진 저장' },
 			{ value: 'alarm',       label: '🚨 경보' },
 		];
 		const currentOption = (wp.patrol_options && wp.patrol_options[0]) || '';
