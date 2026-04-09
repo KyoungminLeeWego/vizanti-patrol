@@ -31,6 +31,7 @@ let {uniqueID}_activeWaypoint = -1;   // 순찰 중 현재 목표 인덱스
 let {uniqueID}_selectedWaypoint = -1; // UI에서 선택된 인덱스
 let {uniqueID}_fixed_frame = tf.fixed_frame;
 let {uniqueID}_wasRunning = false;    // 이전 순찰 실행 상태 (완료 감지용)
+let {uniqueID}_loadedRouteName = null; // 불러온 named route 이름 (없으면 null)
 
 // 드래그 상태
 let {uniqueID}_dragPoint = -1;
@@ -50,10 +51,12 @@ function {uniqueID}_log(msg, color) {
 }
 
 // ── 루프 토글 버튼 상태 업데이트 ────────────────────────────
-function {uniqueID}_updateLoopBtn() {
+// state를 전달하면 checkbox와 버튼을 함께 설정, 생략하면 현재 checkbox 값을 읽음
+function {uniqueID}_updateLoopBtn(state) {
 	const cb = document.getElementById("{uniqueID}_loop");
 	const btn = document.getElementById("{uniqueID}_loop_btn");
 	if (!btn) return;
+	if (state !== undefined) cb.checked = state;
 	if (cb.checked) {
 		btn.style.background = '#4CAF50';
 		btn.style.color = '#fff';
@@ -266,6 +269,19 @@ function {uniqueID}_renderList() {
 				(isLast ? ' disabled' : '') + '>▼</button>'
 			: '';
 
+		// 순찰 옵션 선택 드롭다운 — 현재 선택된 옵션 표시
+		const PATROL_OPTIONS = [
+			{ value: '',            label: '없음' },
+			{ value: 'yolo_camera', label: '📷 카메라' },
+			{ value: 'photo',       label: '🖼 사진 저장' },
+			{ value: 'lidar_check', label: '📡 전방 장애물 감지' },
+			{ value: 'alarm',       label: '🚨 경보' },
+		];
+		const currentOption = (wp.patrol_options && wp.patrol_options[0]) || '';
+		const optionsHtml = PATROL_OPTIONS.map(opt =>
+			`<option value="${opt.value}" ${currentOption === opt.value ? 'selected' : ''}>${opt.label}</option>`
+		).join('');
+
 		li.innerHTML =
 			upBtn + dnBtn +
 			'<span style="min-width:18px;text-align:center;font-weight:bold;font-size:12px;color:' +
@@ -273,11 +289,37 @@ function {uniqueID}_renderList() {
 			'<span style="flex:1;font-family:monospace;font-size:11px;color:#cdd6f4;">' +
 				'x=' + wp.x.toFixed(2) + ' y=' + wp.y.toFixed(2) +
 				' <span style="color:#f9e2af;">yaw=' + Math.round((wp.yaw || 0) * 180 / Math.PI) + '\u00b0</span></span>' +
+			// 이름 입력란
+			'<input class="{uniqueID}_wp_name" data-idx="' + i + '" type="text" ' +
+				'value="' + (wp.name || '').replace(/"/g, '&quot;') + '" ' +
+				'placeholder="이름(선택)" ' +
+				'style="width:70px;padding:2px 5px;background:#313244;border:1px solid #45475a;' +
+				'border-radius:4px;color:#cdd6f4;font-size:11px;flex-shrink:0;">' +
+			// 순찰 옵션 선택
+			'<select class="{uniqueID}_wp_option" data-idx="' + i + '" ' +
+				'style="padding:2px 4px;background:#313244;border:1px solid #45475a;' +
+				'border-radius:4px;color:#cdd6f4;font-size:11px;flex-shrink:0;">' +
+				optionsHtml +
+			'</select>' +
+			// 삭제 버튼
 			'<button class="{uniqueID}_del_wp" data-idx="' + i + '" ' +
 				'style="background:#f38ba8;color:#1e1e2e;padding:1px 6px;font-size:11px;' +
 				'border:none;border-radius:4px;cursor:pointer;flex-shrink:0;">✕</button>';
 
 		ul.appendChild(li);
+
+		// 이름 입력 이벤트
+		li.querySelector('.{uniqueID}_wp_name').addEventListener('input', e => {
+			const idx = parseInt(e.target.dataset.idx);
+			{uniqueID}_waypoints[idx].name = e.target.value;
+		});
+
+		// 순찰 옵션 선택 이벤트
+		li.querySelector('.{uniqueID}_wp_option').addEventListener('change', e => {
+			const idx = parseInt(e.target.dataset.idx);
+			const val = e.target.value;
+			{uniqueID}_waypoints[idx].patrol_options = val ? [val] : [];
+		});
 	});
 }
 
@@ -372,12 +414,14 @@ function {uniqueID}_onMapMouseUp(e) {
 		const startPt = {uniqueID}_screenToPoint(sp);
 		const endPt   = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
 		const yaw = Math.atan2(endPt.y - startPt.y, endPt.x - startPt.x);
-		{uniqueID}_waypoints.push({ x: startPt.x, y: startPt.y, yaw: yaw });
+		{uniqueID}_loadedRouteName = null;
+		{uniqueID}_waypoints.push({ x: startPt.x, y: startPt.y, yaw: yaw, name: '', patrol_options: [] });
 		{uniqueID}_renderList();
 		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (yaw ' + Math.round(yaw * 180 / Math.PI) + '\u00b0)');
 	} else {
 		const worldPt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
-		{uniqueID}_waypoints.push({ x: worldPt.x, y: worldPt.y, yaw: 0 });
+		{uniqueID}_loadedRouteName = null;
+		{uniqueID}_waypoints.push({ x: worldPt.x, y: worldPt.y, yaw: 0, name: '', patrol_options: [] });
 		{uniqueID}_renderList();
 		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (' +
 			worldPt.x.toFixed(2) + ', ' + worldPt.y.toFixed(2) + ')');
@@ -441,12 +485,25 @@ async function {uniqueID}_startPatrol() {
 	const loop = document.getElementById("{uniqueID}_loop").checked;
 	{uniqueID}_log('순찰 시작 요청 중...');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/waypoints', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ points: {uniqueID}_waypoints, loop }),
-		});
+		let res;
+		if ({uniqueID}_loadedRouteName) {
+			res = await fetch(
+				{uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent({uniqueID}_loadedRouteName) + '/run?loop=' + loop,
+				{ method: 'POST' }
+			);
+		} else {
+			res = await fetch({uniqueID}_API + '/api/waypoints/run', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ points: {uniqueID}_waypoints, loop }),
+			});
+		}
 		const data = await res.json();
+		// 서버가 실제로 사용한 loop 값으로 UI 동기화
+		if (typeof data.loop === 'boolean') {
+			{uniqueID}_updateLoopBtn(data.loop);
+			{uniqueID}_drawRoute();
+		}
 		{uniqueID}_log(data.message || (data.success ? '순찰 시작됨' : '시작 실패'));
 		{uniqueID}_status.setOK();
 	} catch (e) {
@@ -513,9 +570,18 @@ function {uniqueID}_connectStatusWS() {
 
 				{uniqueID}_wasRunning = running;
 
+				// 순찰 중 loop 상태 UI 동기화
+				if (running && typeof data.patrol_loop === 'boolean') {
+					{uniqueID}_updateLoopBtn(data.patrol_loop);
+				}
+
 				// 순찰 중 웨이포인트 UI 동기화 (API 시작 포함)
 				if (running && Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
-					{uniqueID}_waypoints = data.current_waypoints.map(wp => Object.assign({}, wp));
+					{uniqueID}_waypoints = data.current_waypoints.map(wp => ({
+						...wp,
+						name: wp.name || '',
+						patrol_options: wp.patrol_options || [],
+					}));
 					{uniqueID}_renderList();
 					{uniqueID}_drawRoute();
 				}
@@ -544,7 +610,7 @@ function {uniqueID}_connectStatusWS() {
 
 {uniqueID}_connectStatusWS();
 
-// ── 경로 저장 — POST /api/routes (Task 5) ────────────────────
+// ── 경로 저장 — POST /api/waypoints/routes ───────────────────
 async function {uniqueID}_saveRoute() {
 	if ({uniqueID}_waypoints.length === 0) {
 		{uniqueID}_log('웨이포인트가 없습니다', '#f38ba8');
@@ -560,7 +626,7 @@ async function {uniqueID}_saveRoute() {
 
 	{uniqueID}_log('저장 중...', '#f9e2af');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/routes', {
+		const res = await fetch({uniqueID}_API + '/api/waypoints/routes', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -580,11 +646,11 @@ async function {uniqueID}_saveRoute() {
 	}
 }
 
-// ── 경로 불러오기 — GET /api/routes (Task 5) ─────────────────
+// ── 경로 불러오기 — GET /api/waypoints/routes ────────────────
 async function {uniqueID}_loadRoute() {
 	{uniqueID}_log('불러오는 중...', '#f9e2af');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/routes');
+		const res = await fetch({uniqueID}_API + '/api/waypoints/routes');
 		const data = await res.json();
 		if (!data.routes || data.routes.length === 0) {
 			{uniqueID}_log('저장된 경로 없음', '#6c7086');
@@ -650,18 +716,22 @@ function {uniqueID}_showLoadDialog(routeNames) {
 	if (closeBtn) closeBtn.addEventListener('click', () => overlay.remove());
 	overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-	// 경로 선택 — GET /api/routes/{name}
+	// 경로 선택 — GET /api/waypoints/routes/{name}
 	overlay.querySelectorAll('.{uniqueID}_route_row').forEach(row => {
 		row.addEventListener('click', async e => {
 			if (e.target.classList.contains('{uniqueID}_del_route')) return;
 			const name = decodeURIComponent(row.dataset.name);
 			try {
-				const res = await fetch({uniqueID}_API + '/api/routes/' + encodeURIComponent(name));
+				const res = await fetch({uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent(name));
 				if (!res.ok) throw new Error('not found');
 				const r = await res.json();
-				{uniqueID}_waypoints = r.waypoints.map(wp => Object.assign({}, wp));
-				document.getElementById("{uniqueID}_loop").checked = r.loop || false;
-				{uniqueID}_updateLoopBtn();
+				{uniqueID}_waypoints = r.waypoints.map(wp => ({
+					...wp,
+					name: wp.name || '',
+					patrol_options: wp.patrol_options || [],
+				}));
+				{uniqueID}_loadedRouteName = name;
+				{uniqueID}_updateLoopBtn(r.loop === true);
 				{uniqueID}_selectedWaypoint = -1;
 				{uniqueID}_renderList();
 				{uniqueID}_drawRoute();
@@ -673,21 +743,21 @@ function {uniqueID}_showLoadDialog(routeNames) {
 		});
 	});
 
-	// 경로 삭제 — DELETE /api/routes/{name}
+	// 경로 삭제 — DELETE /api/waypoints/routes/{name}
 	overlay.querySelectorAll('.{uniqueID}_del_route').forEach(btn => {
 		btn.addEventListener('click', async e => {
 			e.stopPropagation();
 			const name = decodeURIComponent(btn.dataset.name);
 			try {
 				const res = await fetch(
-					{uniqueID}_API + '/api/routes/' + encodeURIComponent(name),
+					{uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent(name),
 					{ method: 'DELETE' }
 				);
 				if (!res.ok) throw new Error('failed');
 				{uniqueID}_log('"' + name + '" 삭제됨', '#6c7086');
 				overlay.remove();
 				// 남은 경로 있으면 다이얼로그 재표시
-				const listRes = await fetch({uniqueID}_API + '/api/routes');
+				const listRes = await fetch({uniqueID}_API + '/api/waypoints/routes');
 				const listData = await listRes.json();
 				if (listData.routes && listData.routes.length > 0) {
 					{uniqueID}_showLoadDialog(listData.routes);
@@ -705,7 +775,8 @@ function {uniqueID}_addWaypoint() {
 	const y   = parseFloat(document.getElementById("{uniqueID}_wp_y").value);
 	const yaw = parseFloat(document.getElementById("{uniqueID}_wp_yaw").value) || 0;
 	if (isNaN(x) || isNaN(y)) { {uniqueID}_log('x, y 값을 입력하세요', '#f38ba8'); return; }
-	{uniqueID}_waypoints.push({ x, y, yaw });
+	{uniqueID}_loadedRouteName = null;
+	{uniqueID}_waypoints.push({ x, y, yaw, name: '', patrol_options: [] });
 	{uniqueID}_renderList();
 	{uniqueID}_drawRoute();
 	{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (' + x + ', ' + y + ')');
@@ -713,6 +784,7 @@ function {uniqueID}_addWaypoint() {
 
 function {uniqueID}_clearAll() {
 	{uniqueID}_waypoints = [];
+	{uniqueID}_loadedRouteName = null;
 	{uniqueID}_selectedWaypoint = -1;
 	{uniqueID}_activeWaypoint = -1;
 	{uniqueID}_renderList();
@@ -743,10 +815,13 @@ document.getElementById("{uniqueID}_wp_list").addEventListener('click', e => {
 	if (isNaN(idx)) return;
 
 	if (e.target.classList.contains('{uniqueID}_wp_up')) {
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_moveWaypoint(idx, idx - 1);
 	} else if (e.target.classList.contains('{uniqueID}_wp_dn')) {
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_moveWaypoint(idx, idx + 1);
 	} else if (e.target.classList.contains('{uniqueID}_del_wp')) {
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_waypoints.splice(idx, 1);
 		if ({uniqueID}_selectedWaypoint >= {uniqueID}_waypoints.length) {
 			{uniqueID}_selectedWaypoint = -1;
