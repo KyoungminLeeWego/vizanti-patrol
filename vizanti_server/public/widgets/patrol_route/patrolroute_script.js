@@ -31,6 +31,7 @@ let {uniqueID}_activeWaypoint = -1;   // 순찰 중 현재 목표 인덱스
 let {uniqueID}_selectedWaypoint = -1; // UI에서 선택된 인덱스
 let {uniqueID}_fixed_frame = tf.fixed_frame;
 let {uniqueID}_wasRunning = false;    // 이전 순찰 실행 상태 (완료 감지용)
+let {uniqueID}_loadedRouteName = null; // 불러온 named route 이름 (없으면 null)
 
 // 드래그 상태
 let {uniqueID}_dragPoint = -1;
@@ -50,10 +51,12 @@ function {uniqueID}_log(msg, color) {
 }
 
 // ── 루프 토글 버튼 상태 업데이트 ────────────────────────────
-function {uniqueID}_updateLoopBtn() {
+// state를 전달하면 checkbox와 버튼을 함께 설정, 생략하면 현재 checkbox 값을 읽음
+function {uniqueID}_updateLoopBtn(state) {
 	const cb = document.getElementById("{uniqueID}_loop");
 	const btn = document.getElementById("{uniqueID}_loop_btn");
 	if (!btn) return;
+	if (state !== undefined) cb.checked = state;
 	if (cb.checked) {
 		btn.style.background = '#4CAF50';
 		btn.style.color = '#fff';
@@ -372,11 +375,13 @@ function {uniqueID}_onMapMouseUp(e) {
 		const startPt = {uniqueID}_screenToPoint(sp);
 		const endPt   = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
 		const yaw = Math.atan2(endPt.y - startPt.y, endPt.x - startPt.x);
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_waypoints.push({ x: startPt.x, y: startPt.y, yaw: yaw });
 		{uniqueID}_renderList();
 		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (yaw ' + Math.round(yaw * 180 / Math.PI) + '\u00b0)');
 	} else {
 		const worldPt = {uniqueID}_screenToPoint({ x: e.clientX, y: e.clientY });
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_waypoints.push({ x: worldPt.x, y: worldPt.y, yaw: 0 });
 		{uniqueID}_renderList();
 		{uniqueID}_log('#' + {uniqueID}_waypoints.length + ' 추가됨 (' +
@@ -441,12 +446,25 @@ async function {uniqueID}_startPatrol() {
 	const loop = document.getElementById("{uniqueID}_loop").checked;
 	{uniqueID}_log('순찰 시작 요청 중...');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/waypoints/run', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ points: {uniqueID}_waypoints, loop }),
-		});
+		let res;
+		if ({uniqueID}_loadedRouteName) {
+			res = await fetch(
+				{uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent({uniqueID}_loadedRouteName) + '/run?loop=' + loop,
+				{ method: 'POST' }
+			);
+		} else {
+			res = await fetch({uniqueID}_API + '/api/waypoints/run', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ points: {uniqueID}_waypoints, loop }),
+			});
+		}
 		const data = await res.json();
+		// 서버가 실제로 사용한 loop 값으로 UI 동기화
+		if (typeof data.loop === 'boolean') {
+			{uniqueID}_updateLoopBtn(data.loop);
+			{uniqueID}_drawRoute();
+		}
 		{uniqueID}_log(data.message || (data.success ? '순찰 시작됨' : '시작 실패'));
 		{uniqueID}_status.setOK();
 	} catch (e) {
@@ -512,6 +530,11 @@ function {uniqueID}_connectStatusWS() {
 				}
 
 				{uniqueID}_wasRunning = running;
+
+				// 순찰 중 loop 상태 UI 동기화
+				if (running && typeof data.patrol_loop === 'boolean') {
+					{uniqueID}_updateLoopBtn(data.patrol_loop);
+				}
 
 				// 순찰 중 웨이포인트 UI 동기화 (API 시작 포함)
 				if (running && Array.isArray(data.current_waypoints) && data.current_waypoints.length > 0) {
@@ -660,8 +683,8 @@ function {uniqueID}_showLoadDialog(routeNames) {
 				if (!res.ok) throw new Error('not found');
 				const r = await res.json();
 				{uniqueID}_waypoints = r.waypoints.map(wp => Object.assign({}, wp));
-				document.getElementById("{uniqueID}_loop").checked = r.loop || false;
-				{uniqueID}_updateLoopBtn();
+				{uniqueID}_loadedRouteName = name;
+				{uniqueID}_updateLoopBtn(r.loop === true);
 				{uniqueID}_selectedWaypoint = -1;
 				{uniqueID}_renderList();
 				{uniqueID}_drawRoute();
@@ -705,6 +728,7 @@ function {uniqueID}_addWaypoint() {
 	const y   = parseFloat(document.getElementById("{uniqueID}_wp_y").value);
 	const yaw = parseFloat(document.getElementById("{uniqueID}_wp_yaw").value) || 0;
 	if (isNaN(x) || isNaN(y)) { {uniqueID}_log('x, y 값을 입력하세요', '#f38ba8'); return; }
+	{uniqueID}_loadedRouteName = null;
 	{uniqueID}_waypoints.push({ x, y, yaw });
 	{uniqueID}_renderList();
 	{uniqueID}_drawRoute();
@@ -713,6 +737,7 @@ function {uniqueID}_addWaypoint() {
 
 function {uniqueID}_clearAll() {
 	{uniqueID}_waypoints = [];
+	{uniqueID}_loadedRouteName = null;
 	{uniqueID}_selectedWaypoint = -1;
 	{uniqueID}_activeWaypoint = -1;
 	{uniqueID}_renderList();
@@ -743,10 +768,13 @@ document.getElementById("{uniqueID}_wp_list").addEventListener('click', e => {
 	if (isNaN(idx)) return;
 
 	if (e.target.classList.contains('{uniqueID}_wp_up')) {
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_moveWaypoint(idx, idx - 1);
 	} else if (e.target.classList.contains('{uniqueID}_wp_dn')) {
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_moveWaypoint(idx, idx + 1);
 	} else if (e.target.classList.contains('{uniqueID}_del_wp')) {
+		{uniqueID}_loadedRouteName = null;
 		{uniqueID}_waypoints.splice(idx, 1);
 		if ({uniqueID}_selectedWaypoint >= {uniqueID}_waypoints.length) {
 			{uniqueID}_selectedWaypoint = -1;
