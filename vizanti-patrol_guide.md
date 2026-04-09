@@ -409,12 +409,12 @@ rosbridge WS :5001
 
 | 동작 | API 호출 |
 |------|----------|
-| 순찰 시작 | `POST /api/waypoints` `{"points": [...], "loop": true/false}` |
+| 순찰 시작 | `POST /api/waypoints/run` `{"points": [...], "loop": true/false}` |
 | 순찰 중지 | `POST /api/navigate/cancel` |
-| 경로 저장 | `POST /api/routes` `{"name": "<이름>", "points": [...]}` |
-| 경로 목록 조회 | `GET /api/routes` |
-| 경로 불러오기 | `GET /api/routes/<이름>` |
-| 경로 삭제 | `DELETE /api/routes/<이름>` |
+| 경로 저장 | `POST /api/waypoints/routes` `{"name": "<이름>", "waypoints": [...]}` |
+| 경로 목록 조회 | `GET /api/waypoints/routes` |
+| 경로 불러오기 | `GET /api/waypoints/routes/<이름>` |
+| 경로 삭제 | `DELETE /api/waypoints/routes/<이름>` |
 
 ---
 

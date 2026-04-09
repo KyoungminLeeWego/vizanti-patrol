@@ -441,7 +441,7 @@ async function {uniqueID}_startPatrol() {
 	const loop = document.getElementById("{uniqueID}_loop").checked;
 	{uniqueID}_log('순찰 시작 요청 중...');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/waypoints', {
+		const res = await fetch({uniqueID}_API + '/api/waypoints/run', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ points: {uniqueID}_waypoints, loop }),
@@ -544,7 +544,7 @@ function {uniqueID}_connectStatusWS() {
 
 {uniqueID}_connectStatusWS();
 
-// ── 경로 저장 — POST /api/routes (Task 5) ────────────────────
+// ── 경로 저장 — POST /api/waypoints/routes ───────────────────
 async function {uniqueID}_saveRoute() {
 	if ({uniqueID}_waypoints.length === 0) {
 		{uniqueID}_log('웨이포인트가 없습니다', '#f38ba8');
@@ -560,7 +560,7 @@ async function {uniqueID}_saveRoute() {
 
 	{uniqueID}_log('저장 중...', '#f9e2af');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/routes', {
+		const res = await fetch({uniqueID}_API + '/api/waypoints/routes', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -580,11 +580,11 @@ async function {uniqueID}_saveRoute() {
 	}
 }
 
-// ── 경로 불러오기 — GET /api/routes (Task 5) ─────────────────
+// ── 경로 불러오기 — GET /api/waypoints/routes ────────────────
 async function {uniqueID}_loadRoute() {
 	{uniqueID}_log('불러오는 중...', '#f9e2af');
 	try {
-		const res = await fetch({uniqueID}_API + '/api/routes');
+		const res = await fetch({uniqueID}_API + '/api/waypoints/routes');
 		const data = await res.json();
 		if (!data.routes || data.routes.length === 0) {
 			{uniqueID}_log('저장된 경로 없음', '#6c7086');
@@ -650,13 +650,13 @@ function {uniqueID}_showLoadDialog(routeNames) {
 	if (closeBtn) closeBtn.addEventListener('click', () => overlay.remove());
 	overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-	// 경로 선택 — GET /api/routes/{name}
+	// 경로 선택 — GET /api/waypoints/routes/{name}
 	overlay.querySelectorAll('.{uniqueID}_route_row').forEach(row => {
 		row.addEventListener('click', async e => {
 			if (e.target.classList.contains('{uniqueID}_del_route')) return;
 			const name = decodeURIComponent(row.dataset.name);
 			try {
-				const res = await fetch({uniqueID}_API + '/api/routes/' + encodeURIComponent(name));
+				const res = await fetch({uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent(name));
 				if (!res.ok) throw new Error('not found');
 				const r = await res.json();
 				{uniqueID}_waypoints = r.waypoints.map(wp => Object.assign({}, wp));
@@ -673,21 +673,21 @@ function {uniqueID}_showLoadDialog(routeNames) {
 		});
 	});
 
-	// 경로 삭제 — DELETE /api/routes/{name}
+	// 경로 삭제 — DELETE /api/waypoints/routes/{name}
 	overlay.querySelectorAll('.{uniqueID}_del_route').forEach(btn => {
 		btn.addEventListener('click', async e => {
 			e.stopPropagation();
 			const name = decodeURIComponent(btn.dataset.name);
 			try {
 				const res = await fetch(
-					{uniqueID}_API + '/api/routes/' + encodeURIComponent(name),
+					{uniqueID}_API + '/api/waypoints/routes/' + encodeURIComponent(name),
 					{ method: 'DELETE' }
 				);
 				if (!res.ok) throw new Error('failed');
 				{uniqueID}_log('"' + name + '" 삭제됨', '#6c7086');
 				overlay.remove();
 				// 남은 경로 있으면 다이얼로그 재표시
-				const listRes = await fetch({uniqueID}_API + '/api/routes');
+				const listRes = await fetch({uniqueID}_API + '/api/waypoints/routes');
 				const listData = await listRes.json();
 				if (listData.routes && listData.routes.length > 0) {
 					{uniqueID}_showLoadDialog(listData.routes);
