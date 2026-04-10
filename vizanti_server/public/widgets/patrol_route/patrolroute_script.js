@@ -275,7 +275,6 @@ function {uniqueID}_renderList() {
 			{ value: 'yolo_camera', label: '📷 카메라' },
 			{ value: 'photo',       label: '🖼 사진 저장' },
 			{ value: 'lidar_check', label: '📡 전방 장애물 감지' },
-			{ value: 'alarm',       label: '🚨 경보' },
 		];
 		const currentOption = (wp.patrol_options && wp.patrol_options[0]) || '';
 		const optionsHtml = PATROL_OPTIONS.map(opt =>
