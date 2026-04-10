@@ -1,0 +1,35 @@
+<div id="{uniqueID}_modal" class="modal_outer noselect">
+	<div class="modal_inner noselect">
+		<h3>순찰 이력</h3>
+
+		<p id="{uniqueID}_status" class="status">Status: Ok.</p>
+
+		<hr class="dark_hr"/>
+
+		<!-- 목록 화면 -->
+		<div id="{uniqueID}_list_view">
+			<button id="{uniqueID}_btn_refresh" style="padding:7px 12px;border:none;border-radius:6px;font-size:12px;cursor:pointer;background:#313244;color:#cdd6f4;margin-bottom:10px;">🔄 새로고침</button>
+
+			<ul id="{uniqueID}_list" style="list-style:none;max-height:300px;overflow-y:auto;margin-bottom:8px;padding:0;">
+				<li style="font-size:12px;color:#6c7086;text-align:center;padding:20px 0;">로딩 중...</li>
+			</ul>
+		</div>
+
+		<!-- 상세 화면 (기본 숨김) -->
+		<div id="{uniqueID}_detail_view" style="display:none;">
+			<button id="{uniqueID}_btn_back" style="padding:6px 12px;border:none;border-radius:6px;font-size:12px;cursor:pointer;background:#313244;color:#cdd6f4;margin-bottom:10px;">← 뒤로</button>
+
+			<div id="{uniqueID}_detail_header" style="font-size:12px;color:#cdd6f4;margin-bottom:8px;padding:8px;background:#181825;border-radius:6px;"></div>
+
+			<ul id="{uniqueID}_detail_list" style="list-style:none;max-height:260px;overflow-y:auto;margin-bottom:8px;padding:0;">
+			</ul>
+		</div>
+
+		<p id="{uniqueID}_log" style="font-size:11px;color:#6c7086;min-height:16px;"></p>
+
+		<div class="spacer"></div>
+
+		<hr class="dark_hr"/>
+		<button id="{uniqueID}_remove" class="delete_button" onclick="removeWidget('{uniqueID}')">Remove Widget</button>
+	</div>
+</div>
