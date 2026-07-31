@@ -1,0 +1,28 @@
+<div id="{uniqueID}_modal" class="modal_outer noselect">
+	<div class="modal_inner noselect">
+		<h3>Jump Recovery Alert</h3>
+
+		<p id="{uniqueID}_status" class="status">Status: Ok.</p>
+
+		<hr class="dark_hr"/>
+
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">마지막 알림</span>
+			<span id="{uniqueID}_last" style="font-weight:600;">—</span>
+		</div>
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">사유</span>
+			<span id="{uniqueID}_reason" style="font-weight:600;">—</span>
+		</div>
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+			<span style="color:#6c7086;">수신 횟수</span>
+			<span id="{uniqueID}_count" style="font-weight:600;">0</span>
+		</div>
+
+		<div class="spacer"></div>
+
+		<hr class="dark_hr"/>
+		<button id="{uniqueID}_test">테스트 토스트</button>
+		<button id="{uniqueID}_remove" class="delete_button" onclick="removeWidget('{uniqueID}')">Remove Widget</button>
+	</div>
+</div>
