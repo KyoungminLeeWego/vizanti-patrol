@@ -11,8 +11,8 @@ def generate_launch_description():
     default_widget_config = launch.substitutions.LaunchConfiguration('default_widget_config', default='') #e.g. ~/your_custom_config.json
 
     #rosbridge internal params
-    websocket_ping_interval = launch.substitutions.LaunchConfiguration('websocket_ping_interval', default='4')
-    websocket_ping_timeout = launch.substitutions.LaunchConfiguration('websocket_ping_timeout', default='15')
+    websocket_ping_interval = launch.substitutions.LaunchConfiguration('websocket_ping_interval', default='4.0')
+    websocket_ping_timeout = launch.substitutions.LaunchConfiguration('websocket_ping_timeout', default='15.0')
     unregister_timeout = launch.substitutions.LaunchConfiguration('unregister_timeout', default='9999999.9')
     retry_startup_delay = launch.substitutions.LaunchConfiguration('retry_startup_delay', default='10.0')
     fragment_timeout = launch.substitutions.LaunchConfiguration('fragment_timeout', default='30')
